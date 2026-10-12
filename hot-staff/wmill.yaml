@@ -1,0 +1,143 @@
+# yaml-language-server: $schema=wmill.schema.json
+# wmill.yaml — Windmill CLI configuration
+# Full reference: run "wmill config"
+
+# Glob patterns for files to include in sync
+includes: 
+  - "f/**"           # use ** for all, f/** for folder-scoped
+
+# Additional glob patterns merged with includes (useful in workspace overrides)
+# extraIncludes: []
+
+# Glob patterns for files to exclude from sync
+excludes: []
+
+# --- What to sync -----------------------------------------------------
+# "skip" options default to false (synced), "include" options default to false (not synced)
+
+# Skip syncing variables
+skipVariables: false
+
+# Skip syncing resources
+skipResources: true             # resource values (e.g. AWS key IDs) stay in Windmill, not git
+
+# Skip syncing resource types
+skipResourceTypes: false
+
+# Skip syncing secrets (true by default for security)
+skipSecrets: true               # true by default — secrets are not synced for security
+
+# Skip syncing scripts
+skipScripts: false
+
+# Skip syncing flows
+skipFlows: false
+
+# Skip syncing apps
+skipApps: false
+
+# Skip syncing folders
+skipFolders: false
+
+# Skip syncing workspace dependencies
+skipWorkspaceDependencies: false
+
+# Skip syncing data table SQL migrations
+skipDatatableMigrations: false
+
+# Uncomment to include these (excluded by default):
+# Include schedules in sync
+# includeSchedules: true
+
+# Include triggers (http, websocket, kafka, etc.) in sync
+# includeTriggers: true
+
+# Include workspace users in sync
+# includeUsers: true
+
+# Include workspace groups in sync
+# includeGroups: true
+
+# Include workspace settings in sync
+# includeSettings: true
+
+# Include encryption key in sync
+# includeKey: true
+
+# --- Sync behavior ----------------------------------------------------
+
+# Number of parallel operations during sync
+# parallel: 4
+
+# Require lock files for all scripts
+# locksRequired: true
+
+# Share one lockfile per workspace dependency file (locks/<depfile>.lock), instead of an identical .script.lock per script
+# dedupeLockfiles: true
+
+# Run linting before push
+# lint: true
+
+# Handle secrets as plain text (not recommended)
+# plainSecrets: false
+
+# Default commit message for sync operations
+# message: "my commit message"
+
+# Branch name to use promotion overrides from during sync
+# promotion: staging
+
+# Skip validation that current git branch matches a configured branch
+# skipBranchValidation: false
+
+# Use __flow/__app/__raw_app suffixes instead of .flow/.app/.raw_app
+nonDottedPaths: true            # recommended for new projects
+
+# Sync behavior version — controls ownership handling during push/pull (v1: preserve permissioned_as on update, strip on_behalf_of_email on pull)
+syncBehavior: v1                # v1 enables ownership preservation
+
+# --- Codebase bundling (shared libraries) -----------------------------
+# Bundle TypeScript/JavaScript codebases that scripts import from.
+# Each entry is bundled and uploaded so scripts can import shared code.
+
+# Codebase bundling configurations for shared libraries
+codebases: []
+# codebases:
+#   - relative_path: ./shared          # path to the codebase
+#     # extra_digest_paths: ["../packages/utils/src"] # imported paths outside relative_path, hashed recursively (skip node_modules/dist)
+#     includes: ["**/*.ts"]            # files to include in bundle
+#     excludes: ["node_modules/**"]    # files to exclude
+#     format: esm                      # bundle format: "cjs" or "esm"
+#     external: ["pg", "axios"]        # dependencies to leave unbundled
+#     assets:                          # static files to copy into bundle
+#       - from: ./static
+#         to: ./dist
+#     # customBundler: ./build.ts      # custom bundler script (replaces esbuild)
+#     # inject: ["./polyfills.ts"]     # files to inject into every entry point
+#     # define:                        # compile-time constants
+#     #   API_URL: '"https://api.example.com"'
+#     # banner:                        # text prepended to output files
+#     #   js: "/* bundled by windmill */"
+#     # loader:                        # esbuild loader overrides
+#     #   ".png": "dataurl"
+
+# --- Workspace bindings -----------------------------------------------
+# Map workspace names to Windmill instances and override settings per workspace.
+# The key is a human-friendly workspace name. gitBranch and workspaceId default to the key name.
+
+# Map workspace names to Windmill instances and per-workspace sync overrides
+workspaces:
+  hot-staff:
+    baseUrl: https://tasks.k8s-prod.hotosm.org/
+    gitBranch: main                            # git branch to auto-detect this workspace (defaults to key name)
+    # overrides:                           # override top-level sync options for this workspace
+    #   skipSecrets: false
+    #   includeSchedules: true
+    # promotionOverrides:                  # overrides when using --promotion
+    #   skipSecrets: false
+    # specificItems:                       # items synced per-workspace (file suffix = workspace name)
+    #   variables: []
+    #   resources: []
+    #   triggers: []
+    #   folders: []
+    #   settings: false

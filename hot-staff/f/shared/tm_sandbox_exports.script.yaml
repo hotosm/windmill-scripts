@@ -1,0 +1,27 @@
+summary: Export TM Production sandbox data daily
+description: 'Sandbox Exports '
+lock: ''
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - msg
+    - dflt
+  properties:
+    interval:
+      type: string
+      description: ''
+      default: '24'
+      originalType: string
+    project:
+      type: string
+      description: ''
+      default: ''
+      originalType: string
+    template:
+      type: string
+      description: ''
+      default: ''
+      originalType: string
+  required: []

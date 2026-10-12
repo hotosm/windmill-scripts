@@ -1,0 +1,66 @@
+summary: Update HOT Tool Annoucement Banners
+description: Each tool has announcement info stored in S3, displayed via a
+  shared UI component. This workflow updates the content of the announcement and
+  makes it available immediate for users of the tool.
+lock: '!inline f/shared/update_tool_announcement.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  properties:
+    version:
+      type: string
+      description: ''
+      default: ''
+      originalType: string
+    aws:
+      type: object
+      description: ''
+      default: null
+      format: resource-aws
+    banner_type:
+      type: string
+      description: ''
+      default: HOT Red
+      enum:
+        - HOT Red
+        - Green (Success)
+        - Grey (Neutral)
+        - Warning (Yellow)
+      originalType: enum
+    clear:
+      type: boolean
+      description: ''
+      default: false
+    ends_at:
+      type: string
+      description: ''
+      default: null
+      format: date-time
+    message:
+      type: string
+      description: ''
+      default: ''
+      originalType: string
+    starts_at:
+      type: string
+      description: ''
+      default: null
+      format: date-time
+    title:
+      type: string
+      description: ''
+      default: ''
+      originalType: string
+    tool:
+      type: string
+      description: ''
+      default: null
+      enum:
+        - field-tm
+        - drone-tm
+        - oam
+      originalType: enum
+  required:
+    - aws
+    - tool
