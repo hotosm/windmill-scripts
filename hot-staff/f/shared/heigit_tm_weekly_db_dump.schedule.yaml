@@ -1,0 +1,21 @@
+summary: Tasking Manager Weekly DB Dump
+description: ''
+args:
+  aws: $res:f/shared/tm_heigit_s3_creds
+  bucket: heigit-backups
+  db: $res:f/shared/tm_heigit_reader
+  endpoint_url: ''
+  prefix: tasking-manager-production
+cron_version: v2
+enabled: true
+is_flow: false
+no_flow_overlap: false
+on_failure_exact: false
+on_failure_times: 1
+on_recovery_extra_args: {}
+on_recovery_times: 1
+on_success_extra_args: {}
+schedule: 0 0 12 * * WED
+script_path: f/shared/tm_heigit_export
+timezone: UTC
+ws_error_handler_muted: false

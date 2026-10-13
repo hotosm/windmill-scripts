@@ -47,19 +47,19 @@ skipDatatableMigrations: false
 
 # Uncomment to include these (excluded by default):
 # Include schedules in sync
-# includeSchedules: true
+includeSchedules: true
 
 # Include triggers (http, websocket, kafka, etc.) in sync
-# includeTriggers: true
+includeTriggers: true
 
 # Include workspace users in sync
-# includeUsers: true
+includeUsers: true
 
 # Include workspace groups in sync
-# includeGroups: true
+includeGroups: true
 
 # Include workspace settings in sync
-# includeSettings: true
+includeSettings: true
 
 # Include encryption key in sync
 # includeKey: true
