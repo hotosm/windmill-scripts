@@ -1,4 +1,4 @@
-summary: ''
+summary: Export TM database dump to S3 (HeiGIT)
 description: ''
 lock: '!inline f/shared/tm_heigit_export.script.lock'
 kind: script
