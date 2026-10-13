@@ -1,2 +1,5 @@
 **/**/.agents
 **/**/.claude
+
+**/**/*.pyc
+**/**/*__pychache__

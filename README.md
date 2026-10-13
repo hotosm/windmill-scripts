@@ -7,8 +7,7 @@
 ## How to sync
 
 ```bash
-pnpm dlx windmill-cli workspace add hot-staff
-# follow instructions if you haven't added token etc yet
+pnpm dlx windmill-cli workspace add hot-staff hot-staff https://tasks.k8s-prod.hotosm.org --token "$WINDMILL_TOKEN"
 
 pnpm dlx windmill-cli workspace list
 pnpm dlx windmill-cli workspace switch hot-staff
@@ -19,3 +18,11 @@ pnpm dlx windmill-cli init
 # Subsequent syncs only require this
 pnpm dlx windmill-cli sync pull
 ```
+
+## Infra
+
+Some scripts need AWS setup (networking, IAM) outside Windmill. That lives in
+`infra/<script_name>/`, named after the Windmill script it supports, with a
+README covering what was created and how to undo it.
+
+- `infra/tm_heigit_export/` → `hot-staff/f/shared/tm_heigit_export.py`
