@@ -1,0 +1,52 @@
+summary: LearnOSM - daily Transifex sync to staging
+description: Pull Transifex translations, force-push hotosm/learnosm@transifex-sync, trigger the staging.learnosm.org deploy. Needs variables f/shared/transifex_api_key and f/shared/github-repo-rw.
+lock: ''
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  order:
+    - repo
+    - base_branch
+    - sync_branch
+    - min_perc
+    - staging_repo
+    - staging_workflow
+    - tx_version
+  properties:
+    repo:
+      type: string
+      description: ''
+      default: 'hotosm/learnosm'
+      originalType: string
+    base_branch:
+      type: string
+      description: ''
+      default: 'gh-pages'
+      originalType: string
+    sync_branch:
+      type: string
+      description: ''
+      default: 'transifex-sync'
+      originalType: string
+    min_perc:
+      type: string
+      description: ''
+      default: '10'
+      originalType: string
+    staging_repo:
+      type: string
+      description: ''
+      default: 'hotosm/learnosm-staging'
+      originalType: string
+    staging_workflow:
+      type: string
+      description: ''
+      default: 'deploy.yml'
+      originalType: string
+    tx_version:
+      type: string
+      description: ''
+      default: 'v1.6.17'
+      originalType: string
+  required: []

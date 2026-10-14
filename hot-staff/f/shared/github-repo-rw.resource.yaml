@@ -1,0 +1,4 @@
+description: Read write access for all hotosm repos
+value:
+  token: $var:f/shared/github-repo-rw
+resource_type: github
