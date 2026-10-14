@@ -1,0 +1,6 @@
+description: Export TM database to S3 regularly
+value:
+  awsAccessKeyId: AKIAZYDVV4ILHEDDGBXW
+  awsSecretAccessKey: $var:f/shared/tm_heigit_s3_creds
+  region: us-east-1
+resource_type: aws

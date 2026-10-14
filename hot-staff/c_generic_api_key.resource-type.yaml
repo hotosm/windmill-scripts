@@ -1,0 +1,14 @@
+description: Any generic API token
+format_extension: null
+is_fileset: false
+schema:
+  type: object
+  order:
+    - api_key
+  properties:
+    api_key:
+      type: string
+      description: Generic API token
+      format: password
+  required:
+    - api_key

@@ -1,0 +1,12 @@
+description: Export TM database regularly to S3
+value:
+  dbname: tm_production
+  host: tasking-manager-rds-production.cluster-ro-ca3byyjcislk.us-east-1.rds.amazonaws.com
+  password: $var:f/shared/tm_heigit_reader
+  port: 5432
+  region: ''
+  root_certificate_pem: ''
+  sslmode: require
+  use_iam_auth: false
+  user: heigit_reader
+resource_type: postgresql

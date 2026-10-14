@@ -1,0 +1,7 @@
+description: For pushing to the hot-announcements bucket and invalidating the
+  Cloudfront distribution on top
+value:
+  awsAccessKeyId: AKIAZYDVV4ILI2YKJEMV
+  awsSecretAccessKey: $var:f/shared/hot-announcements-s3-creds
+  region: us-east-1
+resource_type: aws

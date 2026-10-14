@@ -1,0 +1,4 @@
+description: spwoodcock transifex api key for automation
+value:
+  api_key: $var:f/shared/transifex_api_key
+resource_type: c_generic_api_key

@@ -1,0 +1,4 @@
+description: For pushing to the hot-announcements bucket and invalidating the
+  Cloudfront distribution on top
+value: U3Er+wO3DOpz/SHBd3dqr7Ug2oxWIiaEW2WekWyZKNAXPm6mhrfrah5AFvbayhLJ
+is_secret: true

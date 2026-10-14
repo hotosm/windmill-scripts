@@ -19,13 +19,13 @@ excludes: []
 skipVariables: false
 
 # Skip syncing resources
-skipResources: true             # resource values (e.g. AWS key IDs) stay in Windmill, not git
+skipResources: false             # resource values (e.g. AWS key IDs) stay in Windmill, not git
 
 # Skip syncing resource types
 skipResourceTypes: false
 
 # Skip syncing secrets (true by default for security)
-skipSecrets: true               # true by default — secrets are not synced for security
+skipSecrets: false               # true by default — secrets are not synced for security
 
 # Skip syncing scripts
 skipScripts: false
