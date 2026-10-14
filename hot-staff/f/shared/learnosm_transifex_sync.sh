@@ -13,8 +13,7 @@ base_branch="${2:-gh-pages}"
 sync_branch="${3:-transifex-sync}"
 min_perc="${4:-10}"
 staging_repo="${5:-hotosm/learnosm-staging}"
-staging_workflow="${6:-deploy.yml}"
-tx_version="${7:-v1.6.17}"
+tx_version="${6:-v1.6.17}"
 
 TX_TOKEN="$(wmill variable get f/shared/transifex_api_key --json | jq -r .value)"
 GH_TOKEN="$(wmill variable get f/shared/github-repo-rw --json | jq -r .value)"
@@ -91,8 +90,62 @@ matches_any() {
   return 1
 }
 
+# Front matter of a file (between the first two '---' lines), or nothing.
+front_matter() { [[ "$(head -1 "$1")" == ---* ]] && sed -n '2,/^---/{/^---/!p}' "$1"; }
+fm_value() { sed -n "s/^$1: *//p" | head -1; }
+
+rtl_langs=" ar fa he "
+valid_layouts=" doc doc-rtl front front-rtl contribute contribute-rtl default status all-chapters "
+
+# Rebuild the front matter of translation $1 (language $2, resource prefix $3) from the
+# English source: keep the translated title and a valid translated layout, keep the
+# page's current URL; take everything else from English. The body is left byte-for-byte untouched.
+fix_front_matter() {
+  local f="$1" lang="$2" prefix="$3" en tr_fm en_fm title perm layout line key out
+  en="_posts/en/${prefix}en.md"
+  # Some English sources use hyphens where the resource name has underscores (id-issues).
+  if [[ ! -f "$en" ]]; then en="${prefix%_}"; en="_posts/en/${en//_/-}_en.md"; fi
+  [[ -f "$en" ]] || return 1
+  tr_fm="$(front_matter "$f")" || return 1
+  [[ -n "$tr_fm" ]] || return 1
+  en_fm="$(front_matter "$en")"
+
+  title="$(fm_value title <<<"$tr_fm")"
+  # Quote titles that aren't valid plain YAML scalars (e.g. "JOSM: Cómo ...").
+  if [[ -n "$title" && "$title" != [\"\']* && ( "$title" == *": "* || "$title" == *" #"* || "$title" == [\[\{\&\*\!\|\>\%\@\`-]* ) ]]; then
+    title="${title//\\/\\\\}"
+    title="\"${title//\"/\\\"}\""
+  fi
+  # The URL is never taken from Transifex (translators sometimes change it): keep the one the
+  # page already has on the site, else use the English one with the language swapped.
+  perm=""
+  [[ -f "_posts/${lang}/$(basename "$f")" ]] && perm="$(front_matter "_posts/${lang}/$(basename "$f")" | fm_value permalink)"
+  [[ "$perm" =~ ^/${lang}/[A-Za-z0-9/._-]*$ ]] || perm="/${lang}/$(fm_value permalink <<<"$en_fm" | sed 's|^/en/||')"
+  layout="$(fm_value layout <<<"$tr_fm")"
+  if [[ "$valid_layouts" != *" $layout "* ]]; then
+    layout="$(fm_value layout <<<"$en_fm")"
+    [[ "$rtl_langs" == *" $lang "* && " doc front contribute " == *" $layout "* ]] && layout="${layout}-rtl"
+  fi
+
+  out="---"$'\n'
+  while IFS= read -r line; do
+    key="${line%%:*}"
+    case "$key" in
+      title) [[ -n "$title" ]] && line="title: ${title}" ;;
+      permalink) line="permalink: ${perm}" ;;
+      layout) line="layout: ${layout}" ;;
+      lang) line="lang: ${lang}" ;;
+    esac
+    out+="${line}"$'\n'
+  done <<<"$en_fm"
+  out+="---"$'\n'
+
+  { printf '%s' "$out"; sed '1,/^---/d' "$f"; } >"$f.tmp" && mv "$f.tmp" "$f"
+}
+
 shopt -s nullglob
-processed=0 held=0 unknown=0
+processed=0 held=0 unknown=0 fixed=0 warned=0 replaced=0
+synced=()
 for f in "$txdir"/translations/*.md; do
   name="$(basename "$f")"
   # Original script only takes 0[1-9]*.md and 19*.md
@@ -104,9 +157,10 @@ for f in "$txdir"/translations/*.md; do
     continue
   fi
 
-  lang=""
+  lang="" prefix=""
   for p in "${prefixes[@]}"; do
     if [[ "$name" == "$p"*.md ]]; then
+      prefix="$p"
       lang="${name#"$p"}"
       lang="${lang%.md}"
       break
@@ -122,27 +176,44 @@ for f in "$txdir"/translations/*.md; do
     sed -i '0,/^>/{/^>/d;}' "$f"
   fi
 
-  # Translators sometimes edit the front matter: force `lang:` to the file's language,
-  # rewrite `/en/...` permalinks and restore a missing slash ("/zh_CNjosm/" -> "/zh_CN/josm/").
+  # Translators (and machine translation) often translate the front matter too, e.g.
+  # "تخطيط: وثيقة" instead of "layout: doc". Rebuild it from the English source.
   if [[ "$lang" != en ]]; then
-    if [[ "$(head -1 "$f")" == ---* ]]; then
-      sed -i -E "2,/^---/{
-        s|^lang:.*|lang: ${lang}|
-        s|^permalink: */en/|permalink: /${lang}/|
-        s|^(permalink: */${lang})([a-z])|\\1/\\2|
-      }" "$f"
+    if fix_front_matter "$f" "$lang" "$prefix"; then
+      fixed=$((fixed + 1))
+    else
+      echo "WARNING  could not rebuild front matter, copied as-is: $name"
+      warned=$((warned + 1))
     fi
-    for key in layout permalink lang; do
-      sed -n '2,/^---/p' "$f" | grep -q "^${key}:" ||
-        echo "WARNING  front matter has no '${key}:' (fix in Transifex): $name"
-    done
   fi
 
   mkdir -p "_posts/$lang"
   cp "$f" "_posts/$lang/$name"
+  synced+=("_posts/$lang/$name")
   processed=$((processed + 1))
 done
-echo "Processed: $processed  Held: $held  Unknown: $unknown"
+# Older hand-copied translations sometimes use a non-standard file name (e.g.
+# usando-GPS_pt.md for gps_pt.md). When a Transifex file now publishes the same URL,
+# remove the old copy, otherwise Jekyll publishes one of the two at random.
+declare -A synced_set=()
+for f in "${synced[@]}"; do synced_set["$f"]=1; done
+perm_of() { front_matter "$1" | fm_value permalink | sed 's|/*$||'; }
+declare -A synced_perm=()
+for f in "${synced[@]}"; do
+  p="$(perm_of "$f")"
+  [[ -n "$p" ]] && synced_perm["$p"]="$f"
+done
+for other in _posts/*/*.md; do
+  [[ "$other" == _posts/en/* || -n "${synced_set[$other]:-}" ]] && continue
+  [[ "$(basename "$other")" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}- ]] || continue # not published by Jekyll
+  p="$(perm_of "$other")"
+  [[ -n "$p" && -n "${synced_perm[$p]:-}" ]] || continue
+  git rm -q "$other"
+  echo "REPLACED $other (same URL as ${synced_perm[$p]})"
+  replaced=$((replaced + 1))
+done
+
+echo "Processed: $processed  Held: $held  Unknown: $unknown  Front matter rebuilt: $fixed  Not rebuilt: $warned  Replaced: $replaced"
 
 # --- Commit & push only if something changed ---
 git add -A _posts
@@ -182,11 +253,13 @@ fi
 # --- Trigger staging deploy ---
 # Every run, not only when the branch changed: staging also picks up gh-pages merges and
 # staging/* branches in the source repo, which this script can't see.
-curl -fsS -X POST \
+# repository_dispatch only needs Contents: write on the staging repo (workflow_dispatch
+# would need Actions: write).
+curl -fsS --fail-with-body -X POST \
   -H "Authorization: Bearer ${GH_TOKEN}" \
   -H "Accept: application/vnd.github+json" \
-  "https://api.github.com/repos/${staging_repo}/actions/workflows/${staging_workflow}/dispatches" \
-  -d '{"ref":"main"}'
+  "https://api.github.com/repos/${staging_repo}/dispatches" \
+  -d '{"event_type":"transifex-sync"}'
 echo "Staging deploy triggered."
 
-echo "{\"processed\": $processed, \"held\": $held, \"unknown\": $unknown, \"changed_files\": $changed_files, \"pushed\": $pushed}"
+echo "{\"processed\": $processed, \"held\": $held, \"unknown\": $unknown, \"replaced\": $replaced, \"changed_files\": $changed_files, \"pushed\": $pushed}"
