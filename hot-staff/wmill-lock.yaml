@@ -1,6 +1,6 @@
 version: v2
 locks:
-  f/shared/learnosm_transifex_sync: 7ee0bad5a2e08fe61bc7893115e19ccc425df4cc0b8aaebfd053292b9f2c2a6c
+  f/shared/learnosm_transifex_sync: aa87cf62171f5ba7dbcfab72d53e99ee50464238ef6dd1d77f42e1aab80c46f8
   f/shared/tm_heigit_export: 645334e300d243cd4f6aa42635fa112fa2f25474b1afb65c825badddf1fcafa9
   f/shared/tm_sandbox_exports: 62cea75c271a6260df2046a5885c327af86dcfbe91326834e6cbd329efa423ab
   f/shared/update_tool_announcement: 9c31940a6d3645e3ca6708a9c7c77aa2f94e3d2061b6886278509a015ff9d2f4

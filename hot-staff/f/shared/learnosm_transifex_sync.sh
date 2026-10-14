@@ -180,13 +180,13 @@ else
 fi
 
 # --- Trigger staging deploy ---
-if ((pushed)); then
-  curl -fsS -X POST \
-    -H "Authorization: Bearer ${GH_TOKEN}" \
-    -H "Accept: application/vnd.github+json" \
-    "https://api.github.com/repos/${staging_repo}/actions/workflows/${staging_workflow}/dispatches" \
-    -d '{"ref":"main"}'
-  echo "Staging deploy triggered."
-fi
+# Every run, not only when the branch changed: staging also picks up gh-pages merges and
+# staging/* branches in the source repo, which this script can't see.
+curl -fsS -X POST \
+  -H "Authorization: Bearer ${GH_TOKEN}" \
+  -H "Accept: application/vnd.github+json" \
+  "https://api.github.com/repos/${staging_repo}/actions/workflows/${staging_workflow}/dispatches" \
+  -d '{"ref":"main"}'
+echo "Staging deploy triggered."
 
 echo "{\"processed\": $processed, \"held\": $held, \"unknown\": $unknown, \"changed_files\": $changed_files, \"pushed\": $pushed}"
