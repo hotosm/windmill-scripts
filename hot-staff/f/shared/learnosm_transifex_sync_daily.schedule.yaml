@@ -1,15 +1,15 @@
 summary: LearnOSM Transifex sync (daily)
 description: ''
 args:
-  repo: 'hotosm/learnosm'
-  base_branch: 'gh-pages'
-  sync_branch: 'transifex-sync'
+  base_branch: gh-pages
   min_perc: '10'
-  staging_repo: 'hotosm/learnosm-staging'
-  staging_workflow: 'deploy.yml'
-  tx_version: 'v1.6.17'
+  repo: hotosm/learnosm
+  staging_repo: hotosm/learnosm-staging
+  staging_workflow: deploy.yml
+  sync_branch: transifex-sync
+  tx_version: v1.6.17
 cron_version: v2
-enabled: false
+enabled: true
 is_flow: false
 no_flow_overlap: true
 on_failure_exact: false
