@@ -255,7 +255,7 @@ fi
 # staging/* branches in the source repo, which this script can't see.
 # repository_dispatch only needs Contents: write on the staging repo (workflow_dispatch
 # would need Actions: write).
-curl -fsS --fail-with-body -X POST \
+curl -sS --fail-with-body -X POST \
   -H "Authorization: Bearer ${GH_TOKEN}" \
   -H "Accept: application/vnd.github+json" \
   "https://api.github.com/repos/${staging_repo}/dispatches" \
