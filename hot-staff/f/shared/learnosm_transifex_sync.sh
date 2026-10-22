@@ -1,19 +1,16 @@
 # shellcheck shell=bash
-# Daily: pull LearnOSM translations from Transifex, apply the LearnOSM post-processing,
-# and force-push the result to the `transifex-sync` branch of hotosm/learnosm
-# (rebuilt from gh-pages on every run, so it is always "prod + pending translations").
-# Then trigger the staging deploy (hotosm/learnosm-staging -> staging.learnosm.org).
+# Daily: merge hotosm/learnosm@gh-pages into hotosm/learnosm-staging@gh-pages, pull
+# translations from Transifex, apply the LearnOSM post-processing and push to staging.
+# The push deploys staging.learnosm.org (Actions in the staging repo).
 #
-# Port of Nick Allen's tx-10pc_pull_git_push.sh, made stateless.
-# Plan: TRANSLATION_STAGING_PLAN.md in hotosm/learnosm.
+# Port of Nick Allen's tx-10pc_pull_git_push.sh.
 set -euo pipefail
 
-repo="${1:-hotosm/learnosm}"
-base_branch="${2:-gh-pages}"
-sync_branch="${3:-transifex-sync}"
+prod_repo="${1:-hotosm/learnosm}"
+staging_repo="${2:-hotosm/learnosm-staging}"
+branch="${3:-gh-pages}"
 min_perc="${4:-10}"
-staging_repo="${5:-hotosm/learnosm-staging}"
-tx_version="${6:-v1.6.17}"
+tx_version="${5:-v1.6.17}"
 
 TX_TOKEN="$(wmill variable get f/shared/transifex_api_key --json | jq -r .value)"
 GH_TOKEN="$(wmill variable get f/shared/github-repo-rw --json | jq -r .value)"
@@ -37,18 +34,24 @@ curl -fsSL "https://github.com/transifex/cli/releases/download/${tx_version}/tx-
   | tar -xz -C "$work" tx
 TX="$work/tx"
 
-# --- Clone prod: shallow + sparse (only _posts and .tx), skips the ~200 MB of images ---
-g clone --quiet --depth 1 --branch "$base_branch" --filter=blob:none --sparse \
-  "https://github.com/${repo}.git" repo
+# --- Clone staging: blobless + sparse (only _posts and .tx), skips the ~200 MB of images ---
+g clone --quiet --branch "$branch" --filter=blob:none --sparse \
+  "https://github.com/${staging_repo}.git" repo
 cd repo
 git sparse-checkout set _posts .tx
 git config user.name "HOT Transifex Bot"
 git config user.email "sysadmin@hotosm.org"
-git checkout --quiet -B "$sync_branch"
-base_sha="$(git rev-parse HEAD)"
+
+# Bring in anything merged straight into prod, so staging doesn't drift
+g fetch --quiet "https://github.com/${prod_repo}.git" "$branch"
+if ! git merge --quiet --no-edit -m "Merge ${prod_repo}@${branch}" FETCH_HEAD; then
+  echo "ERROR: ${prod_repo}@${branch} conflicts with ${staging_repo}@${branch}; resolve by hand:" >&2
+  git diff --name-only --diff-filter=U >&2
+  exit 1
+fi
 
 if [[ ! -f .tx/config ]]; then
-  echo ".tx/config not found on ${repo}@${base_branch}" >&2
+  echo ".tx/config not found on ${staging_repo}@${branch}" >&2
   exit 1
 fi
 
@@ -166,6 +169,7 @@ for f in "$txdir"/translations/*.md; do
       break
     fi
   done
+  [[ "$lang" == en ]] && continue # English is edited directly on staging
   if [[ ! "$lang" =~ ^[a-z]{2,3}(_[A-Za-z]{2,4})?$ ]]; then
     echo "WARNING  could not determine language, skipped: $name"
     unknown=$((unknown + 1))
@@ -178,13 +182,11 @@ for f in "$txdir"/translations/*.md; do
 
   # Translators (and machine translation) often translate the front matter too, e.g.
   # "تخطيط: وثيقة" instead of "layout: doc". Rebuild it from the English source.
-  if [[ "$lang" != en ]]; then
-    if fix_front_matter "$f" "$lang" "$prefix"; then
-      fixed=$((fixed + 1))
-    else
-      echo "WARNING  could not rebuild front matter, copied as-is: $name"
-      warned=$((warned + 1))
-    fi
+  if fix_front_matter "$f" "$lang" "$prefix"; then
+    fixed=$((fixed + 1))
+  else
+    echo "WARNING  could not rebuild front matter, copied as-is: $name"
+    warned=$((warned + 1))
   fi
 
   mkdir -p "_posts/$lang"
@@ -215,51 +217,17 @@ done
 
 echo "Processed: $processed  Held: $held  Unknown: $unknown  Front matter rebuilt: $fixed  Not rebuilt: $warned  Replaced: $replaced"
 
-# --- Commit & push only if something changed ---
+# --- Commit & push if anything changed (the prod merge counts) ---
 git add -A _posts
-remote_sha="$(g ls-remote --heads origin "$sync_branch" | cut -f1)"
+git diff --cached --quiet || git commit --quiet -m "Latest translations from Transifex ($(date -u +%F))"
+changed_files="$(git diff --name-only "origin/${branch}" HEAD | wc -l)"
 pushed=0
-changed_files=0
-
-if git diff --cached --quiet; then
-  echo "No differences from ${base_branch}."
-  if [[ -n "$remote_sha" ]]; then
-    # Everything merged (or reverted): remove the branch. This also closes any open PR.
-    g push --quiet origin --delete "$sync_branch"
-    echo "Deleted stale ${sync_branch}."
-    pushed=1
-  fi
+if ((changed_files)); then
+  g push --quiet origin "HEAD:refs/heads/${branch}"
+  echo "Pushed ${staging_repo}@${branch}: ${changed_files} file(s) changed."
+  pushed=1
 else
-  git commit --quiet -m "Latest translations from Transifex ($(date -u +%F))"
-  changed_files="$(git diff --name-only "$base_sha" HEAD | wc -l)"
-  same=0
-  if [[ -n "$remote_sha" ]]; then
-    g fetch --quiet --depth 1 origin "$sync_branch"
-    remote_tree="$(git rev-parse 'FETCH_HEAD^{tree}')"
-    # Read the parent from the commit object (FETCH_HEAD^ is unavailable in a shallow fetch).
-    remote_parent="$(git cat-file -p FETCH_HEAD | sed -n 's/^parent //p' | head -1)"
-    # Same content on the same gh-pages base: skip, to avoid daily noise in the PR timeline.
-    [[ "$(git rev-parse 'HEAD^{tree}')" == "$remote_tree" && "$remote_parent" == "$base_sha" ]] && same=1
-  fi
-  if ((same)); then
-    echo "${sync_branch} already up to date."
-  else
-    g push --quiet --force origin "HEAD:refs/heads/${sync_branch}"
-    echo "Pushed ${sync_branch}: ${changed_files} file(s) differ from ${base_branch}."
-    pushed=1
-  fi
+  echo "Nothing to push."
 fi
-
-# --- Trigger staging deploy ---
-# Every run, not only when the branch changed: staging also picks up gh-pages merges and
-# staging/* branches in the source repo, which this script can't see.
-# repository_dispatch only needs Contents: write on the staging repo (workflow_dispatch
-# would need Actions: write).
-curl -sS --fail-with-body -X POST \
-  -H "Authorization: Bearer ${GH_TOKEN}" \
-  -H "Accept: application/vnd.github+json" \
-  "https://api.github.com/repos/${staging_repo}/dispatches" \
-  -d '{"event_type":"transifex-sync"}'
-echo "Staging deploy triggered."
 
 echo "{\"processed\": $processed, \"held\": $held, \"unknown\": $unknown, \"replaced\": $replaced, \"changed_files\": $changed_files, \"pushed\": $pushed}"
