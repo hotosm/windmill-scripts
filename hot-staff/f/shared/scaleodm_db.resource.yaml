@@ -1,0 +1,9 @@
+description: DroneTM metrics (read-only replica)
+value:
+  dbname: scaleodm
+  host: scaleodm-db-ro.postgres.svc.cluster.local
+  password: $var:f/shared/scaleodm_db
+  port: 5432
+  sslmode: require
+  user: scaleodm
+resource_type: postgresql

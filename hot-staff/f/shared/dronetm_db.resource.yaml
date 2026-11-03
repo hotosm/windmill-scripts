@@ -1,0 +1,9 @@
+description: DroneTM metrics (read-only replica)
+value:
+  dbname: drone_tm_prod
+  host: dronetm-db-prod-ro.postgres.svc.cluster.local
+  password: $var:f/shared/dronetm_db
+  port: 5432
+  sslmode: require
+  user: drone_tm_prod_rw
+resource_type: postgresql

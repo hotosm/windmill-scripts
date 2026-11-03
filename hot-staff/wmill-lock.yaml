@@ -1,5 +1,6 @@
 version: v2
 locks:
+  f/shared/dronetm_metrics: dec512f93de355c7180930c98dbdf2d3b1e75f2f54feea939008531a080c2662
   f/shared/learnosm_transifex_sync: 74876f68176845ca592affdf44b74b33e06195db5f2d7e863eea47c6a2014cae
   f/shared/tm_heigit_export: 645334e300d243cd4f6aa42635fa112fa2f25474b1afb65c825badddf1fcafa9
   f/shared/tm_sandbox_exports: 62cea75c271a6260df2046a5885c327af86dcfbe91326834e6cbd329efa423ab
