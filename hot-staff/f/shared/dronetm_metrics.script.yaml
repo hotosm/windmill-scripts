@@ -1,9 +1,35 @@
-summary: ''
+summary: DroneTM Metrics
 description: ''
 lock: '!inline f/shared/dronetm_metrics.script.lock'
 kind: script
 schema:
   $schema: https://json-schema.org/draft/2020-12/schema
   type: object
-  properties: {}
-  required: []
+  properties:
+    dronetm_db:
+      type: object
+      description: ''
+      default: null
+      format: resource-postgresql
+    end:
+      type: string
+      description: ''
+      default: null
+      format: date-time
+    scaleodm_db:
+      type: object
+      description: ''
+      default: null
+      format: resource-postgresql
+    start:
+      type: string
+      description: ''
+      default: null
+      format: date-time
+    unrecorded_km2:
+      type: number
+      description: ''
+      default: 0
+  required:
+    - dronetm_db
+    - scaleodm_db

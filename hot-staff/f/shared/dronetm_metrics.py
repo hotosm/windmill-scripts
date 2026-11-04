@@ -1,6 +1,7 @@
 #requirements:
 #psycopg[binary]
 #httpx
+#openpyxl
 
 """DroneTM success metrics for a time window, from the DroneTM and ScaleODM databases,
 plus processing durations (Prometheus) and compute cost (OpenCost).
@@ -30,11 +31,14 @@ Caveats:
 TODO: add AWS (S3 storage via CloudWatch) and Matomo (visits, visitors, countries) once the credentials exist.
 """
 
+import base64
+import io
 from datetime import UTC, datetime, timedelta
 from typing import TypedDict
 
 import httpx
 import psycopg
+from openpyxl import Workbook
 from psycopg.rows import dict_row
 
 
@@ -305,6 +309,21 @@ def add_rates(summary: dict, unrecorded_km2: float) -> None:
     summary["km2_flown_incl_unrecorded"] = round(summary["km2_flown"] + unrecorded_km2, 2)
 
 
+def to_xlsx(sheets: dict[str, list[dict]]) -> str:
+    """Base64 workbook with one sheet per table."""
+    workbook = Workbook()
+    workbook.remove(workbook.active)
+    for title, rows in sheets.items():
+        sheet = workbook.create_sheet(title)
+        if rows:
+            sheet.append(list(rows[0]))
+        for row in rows:
+            sheet.append(list(row.values()))
+    buffer = io.BytesIO()
+    workbook.save(buffer)
+    return base64.b64encode(buffer.getvalue()).decode()
+
+
 def main(
     dronetm_db: postgresql,
     scaleodm_db: postgresql,
@@ -324,12 +343,16 @@ def main(
 
     window_label = f"{window['start']:%Y-%m-%d} to {window['end']:%Y-%m-%d}"
     summary_rows = [{"metric": k, "value": v} for k, v in summary.items()]
+    cluster_rows = [{"metric": k, "value": v} for k, v in cluster.items()]
+    sheets = {"summary": summary_rows, "cluster": cluster_rows, "monthly": monthly, "projects": projects}
+    filename = f"dronetm_metrics_{window['start']:%Y-%m-%d}_{window['end']:%Y-%m-%d}.xlsx"
     return {
         "render_all": [
+            {"file": {"content": to_xlsx(sheets), "filename": filename}},
             {"md": f"## DroneTM metrics, {window_label}"},
             {"table-row-object": summary_rows},
             {"md": f"## Processing and cost, {cluster_label}"},
-            {"table-row-object": [{"metric": k, "value": v} for k, v in cluster.items()]},
+            {"table-row-object": cluster_rows},
             {"md": "## By month"},
             {"table-row-object": monthly},
             {"md": "## By project"},
