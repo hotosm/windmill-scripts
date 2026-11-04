@@ -28,7 +28,18 @@ Caveats:
 - Cost is the compute allocated to the drone and odm namespaces. It excludes
   idle node time, S3 storage and the shared database cluster.
 
-TODO: add AWS (S3 storage via CloudWatch) and Matomo (visits, visitors, countries) once the credentials exist.
+TODO:
+- Add AWS (S3 BucketSizeBytes / NumberOfObjects via CloudWatch) and Matomo
+  (visits, unique visitors, countries) once the credentials exist.
+- Track paying customers in a list of customer, project_id and ordered/delivered
+  status that the script can join on.
+- Decide how to log tech support effort (e.g. a GitHub label per project) so it
+  can be counted.
+- For quarterly cluster metrics, collect and retain monthly results before the
+  30-day retention expires. Before scheduling on the 1st, add a previous-calendar-
+  month window option (schedule arguments are fixed).
+- Replace the database owner credentials with dedicated read-only roles;
+  currently only the standby hosts enforce read-only access.
 """
 
 import base64
