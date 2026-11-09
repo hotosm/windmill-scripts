@@ -25,11 +25,11 @@ Windmill → Resources → Add `aws` at `f/shared/s3_access_logs_reader` (key, s
 
 ## 2. Test
 
-From `hot-staff/`, with `<acct>` from `aws --profile admin sts get-caller-identity`. Try one week first,
-a full quarter takes 1-2h:
+From `hot-staff/`. Try one week first, a full quarter takes 1-2h. For a whole quarter pass
+`"quarter": "Q3", "year": 2026` in place of `start`/`end`.
 
 ```bash
-pnpm dlx windmill-cli script preview f/shared/rawdata_metrics.py -d '{"aws": "$res:f/shared/s3_access_logs_reader", "logs_path": "hot-server-access-logs/<acct>/us-east-1/production-raw-data-api", "start": "2026-11-01T00:00:00Z", "end": "2026-11-08T00:00:00Z"}'
+pnpm dlx windmill-cli script preview f/shared/rawdata_metrics.py -d '{"aws": "$res:f/shared/s3_access_logs_reader", "start": "2026-11-01T00:00:00Z", "end": "2026-11-08T00:00:00Z"}'
 ```
 
 ## 3. Deploy + schedule
@@ -40,7 +40,7 @@ pnpm dlx windmill-cli script push f/shared/rawdata_metrics.py
 
 Schedules aren't synced to git, so add one in the UI:
 - Script `f/shared/rawdata_metrics`, cron `0 0 6 5 1,4,7,10 *` (UTC). The 5th gives late logs time to arrive.
-- Args: `aws` = `f/shared/s3_access_logs_reader`, `logs_path` as above, `start`/`end` empty (previous quarter)
+- Args: `aws` = `f/shared/s3_access_logs_reader`, everything else empty (previous quarter)
 - Add an error handler so failures notify someone
 
 ## Teardown

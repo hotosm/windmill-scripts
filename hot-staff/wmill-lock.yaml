@@ -2,7 +2,7 @@ version: v2
 locks:
   f/shared/dronetm_metrics: 89ab15181dd3e20d86041d2594e764a9955e657c9328e6d15599b583f03ac9c0
   f/shared/learnosm_transifex_sync: a7bf308aa9c9168f604ccf22ee0ec4f22e090efa9cba366f2798d38cf12eb407
-  f/shared/rawdata_metrics: a73f739defc8d8adcd3f8e46a86f0efb84725332528cb3dc8cfab5d61fd0b462
+  f/shared/rawdata_metrics: 7adea9e5a90dbac8bf974769040fc199b0701402f77eb59c37c77d2ed1ef5ea6
   f/shared/tm_heigit_export: 645334e300d243cd4f6aa42635fa112fa2f25474b1afb65c825badddf1fcafa9
   f/shared/tm_sandbox_exports: 62cea75c271a6260df2046a5885c327af86dcfbe91326834e6cbd329efa423ab
   f/shared/update_tool_announcement: 9c31940a6d3645e3ca6708a9c7c77aa2f94e3d2061b6886278509a015ff9d2f4

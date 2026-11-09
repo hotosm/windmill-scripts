@@ -19,13 +19,26 @@ schema:
     logs_path:
       type: string
       description: ''
-      default: null
+      default: hot-server-access-logs/670261699094/us-east-1/production-raw-data-api
       originalType: string
+    quarter:
+      type: string
+      description: ''
+      default: null
+      enum:
+        - Q1
+        - Q2
+        - Q3
+        - Q4
+      originalType: enum
     start:
       type: string
       description: ''
       default: null
       format: date-time
+    year:
+      type: integer
+      description: ''
+      default: null
   required:
     - aws
-    - logs_path

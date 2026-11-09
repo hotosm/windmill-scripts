@@ -5,11 +5,12 @@
 """Raw Data API download metrics for a date window, from the S3 server access logs of
 the production-raw-data-api bucket. Replaces hotosm/s3-logs-analyzer for reporting.
 
-Window defaults to the previous calendar quarter (end exclusive).
+Window: a `quarter` (with `year`, default this year), or `start` and `end` (end exclusive),
+or neither for the previous calendar quarter.
 
 Setup and infra: infra/rawdata_metrics/ in this repo.
 - `aws`: f/shared/s3_access_logs_reader, read-only on the access logs bucket.
-- `logs_path`: <bucket>/<account-id>/<region>/<source-bucket>, without a trailing slash.
+- `logs_path`: <bucket>/<account-id>/<region>/<source-bucket>, defaults to production-raw-data-api.
 
 Counting is stricter than s3-logs-analyzer and the /v1/metrics API, so numbers are lower:
 - A download is a distinct (day, IP, file) with a 200 or 206 GET. Many clients only fetch
@@ -30,7 +31,7 @@ import subprocess
 import tempfile
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
-from typing import TypedDict
+from typing import Literal, TypedDict
 
 import duckdb
 from openpyxl import Workbook
@@ -50,6 +51,11 @@ LOG_REGEX = (
 )
 LOG_FIELDS = ["time", "ip", "op", "key", "status", "bytes_sent", "object_size"]
 LINE_DELIMITER = "\x1f"  # never appears in logs, so each line reads as one column
+
+# DuckDB sizes itself from the node's RAM, not the pod limit (2Gi on default workers),
+# so cap it and back it with a file in the job dir to spill to disk
+DUCKDB_FILE = "requests.duckdb"
+DUCKDB_CONFIG = {"memory_limit": "1GB", "threads": 2, "preserve_insertion_order": False}
 
 DOWNLOAD_OP = "REST.GET.OBJECT"
 EXPORT_OPS = ("REST.PUT.OBJECT", "REST.POST.UPLOAD")
@@ -90,13 +96,26 @@ BREAKDOWNS = {
 }
 
 
+def quarter_window(year: int, quarter: str) -> tuple[date, date]:
+    first_month = 3 * int(quarter[1]) - 2
+    end = date(year + 1, 1, 1) if quarter == "Q4" else date(year, first_month + 3, 1)
+    return date(year, first_month, 1), end
+
+
 def previous_quarter(today: date) -> tuple[date, date]:
-    end = date(today.year, 3 * ((today.month - 1) // 3) + 1, 1)
-    start = date(end.year - (end.month == 1), (end.month - 4) % 12 + 1, 1)
-    return start, end
+    current = (today.month - 1) // 3 + 1
+    if current == 1:
+        return quarter_window(today.year - 1, "Q4")
+    return quarter_window(today.year, f"Q{current - 1}")
 
 
-def resolve_window(start: datetime | None, end: datetime | None) -> tuple[date, date]:
+def resolve_window(
+    start: datetime | None, end: datetime | None, quarter: str | None, year: int | None
+) -> tuple[date, date]:
+    if quarter:
+        if start or end:
+            raise ValueError("give a quarter or start and end, not both")
+        return quarter_window(year or datetime.now(UTC).year, quarter)
     if not start and not end:
         return previous_quarter(datetime.now(UTC).date())
     if not (start and end):
@@ -109,7 +128,7 @@ def resolve_window(start: datetime | None, end: datetime | None) -> tuple[date, 
 def fetch_day(remote: str, day: date, dest: Path, env: dict) -> None:
     subprocess.run(
         ["rclone", "copy", f"{remote}/{day:%Y/%m/%d}/", str(dest),
-         "--transfers", "64", "--checkers", "64", "--fast-list", "--no-check-dest"],
+         "--transfers", "64", "--checkers", "64", "--fast-list", "--no-check-dest", "--quiet"],
         check=True,
         env=env,
     )
@@ -168,11 +187,14 @@ def to_xlsx(sheets: dict[str, list[dict]]) -> str:
 
 def main(
     aws: aws,
-    logs_path: str,
+    # Windmill only reads literal defaults and inline Literal types from main's signature
+    logs_path: str = "hot-server-access-logs/670261699094/us-east-1/production-raw-data-api",
+    quarter: Literal["Q1", "Q2", "Q3", "Q4"] | None = None,
+    year: int | None = None,
     start: datetime | None = None,
     end: datetime | None = None,
 ):
-    window_start, window_end = resolve_window(start, end)
+    window_start, window_end = resolve_window(start, end, quarter, year)
 
     if not shutil.which("rclone"):
         subprocess.run(["apt-get", "update"], check=True)
@@ -186,7 +208,7 @@ def main(
         "AWS_SECRET_ACCESS_KEY": aws["awsSecretAccessKey"],
     }
 
-    con = duckdb.connect()
+    con = duckdb.connect(DUCKDB_FILE, config=DUCKDB_CONFIG)
     create_requests_table(con)
     total_files = 0
     day = window_start
@@ -195,9 +217,9 @@ def main(
             logs_dir = Path(tmp)
             fetch_day(remote, day, logs_dir, env)
             files = sum(1 for _ in logs_dir.iterdir())
+            print(f"{day}: {files} log files")
             if files:
                 load_day(con, logs_dir)
-            print(f"{day}: {files} log files")
             total_files += files
         day += timedelta(days=1)
 
@@ -205,6 +227,7 @@ def main(
     if not total_files:
         raise RuntimeError(f"no log files under {logs_path} for {window_start} to {window_end}")
 
+    print("building report")
     sheets = report(con)
     window_label = f"{window_start} to {window_end - timedelta(days=1)}"
     filename = f"rawdata_metrics_{window_start}_{window_end - timedelta(days=1)}.xlsx"
