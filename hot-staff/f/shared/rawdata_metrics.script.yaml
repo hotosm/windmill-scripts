@@ -1,0 +1,31 @@
+summary: Raw Data API Download Metrics
+description: ''
+lock: '!inline f/shared/rawdata_metrics.script.lock'
+kind: script
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  properties:
+    aws:
+      type: object
+      description: ''
+      default: null
+      format: resource-aws
+    end:
+      type: string
+      description: ''
+      default: null
+      format: date-time
+    logs_path:
+      type: string
+      description: ''
+      default: null
+      originalType: string
+    start:
+      type: string
+      description: ''
+      default: null
+      format: date-time
+  required:
+    - aws
+    - logs_path

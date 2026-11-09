@@ -1,5 +1,7 @@
 summary: LearnOSM - daily Transifex sync to staging
-description: Merge prod into hotosm/learnosm-staging, pull Transifex translations, push (deploys staging.learnosm.org). Needs variables f/shared/transifex_api_key and f/shared/github-repo-rw.
+description: Merge prod into hotosm/learnosm-staging, pull Transifex
+  translations, push (deploys staging.learnosm.org). Needs variables
+  f/shared/transifex_api_key and f/shared/github-repo-rw.
 lock: ''
 kind: script
 schema:
@@ -12,29 +14,29 @@ schema:
     - min_perc
     - tx_version
   properties:
-    prod_repo:
-      type: string
-      description: ''
-      default: 'hotosm/learnosm'
-      originalType: string
-    staging_repo:
-      type: string
-      description: ''
-      default: 'hotosm/learnosm-staging'
-      originalType: string
     branch:
       type: string
       description: ''
-      default: 'gh-pages'
+      default: gh-pages
       originalType: string
     min_perc:
       type: string
       description: ''
       default: '10'
       originalType: string
+    prod_repo:
+      type: string
+      description: ''
+      default: hotosm/learnosm
+      originalType: string
+    staging_repo:
+      type: string
+      description: ''
+      default: hotosm/learnosm-staging
+      originalType: string
     tx_version:
       type: string
       description: ''
-      default: 'v1.6.17'
+      default: v1.6.17
       originalType: string
   required: []

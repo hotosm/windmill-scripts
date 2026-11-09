@@ -1,0 +1,6 @@
+description: Read-only S3 access logs (hot-server-access-logs)
+value:
+  awsAccessKeyId: AKIAZYDVV4ILNACNXETN
+  awsSecretAccessKey: $var:f/shared/s3_access_logs_reader
+  region: us-east-1
+resource_type: aws

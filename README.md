@@ -26,3 +26,4 @@ Some scripts need AWS setup (networking, IAM) outside Windmill. That lives in
 README covering what was created and how to undo it.
 
 - `infra/tm_heigit_export/` → `hot-staff/f/shared/tm_heigit_export.py`
+- `infra/rawdata_metrics/` → `hot-staff/f/shared/rawdata_metrics.py`
