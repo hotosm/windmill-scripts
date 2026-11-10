@@ -1,7 +1,7 @@
 # Raw-Data-API Metrics
 
 Quarterly download metrics for `production-raw-data-api`, from its S3 server access logs:
-rclone (one day at a time) → DuckDB → xlsx. Replaces the reporting side of
+rclone (one day at a time) → DuckDB → summary tables. Replaces the reporting side of
 [hotosm/s3-logs-analyzer](https://github.com/hotosm/s3-logs-analyzer).
 
 Script: [`hot-staff/f/shared/rawdata_metrics.py`](../../hot-staff/f/shared/rawdata_metrics.py)

@@ -1,6 +1,5 @@
 #requirements:
 #duckdb
-#openpyxl
 
 """Raw Data API download metrics for a date window, from the S3 server access logs of
 the production-raw-data-api bucket. Replaces hotosm/s3-logs-analyzer for reporting.
@@ -23,8 +22,6 @@ S3 delivers access logs up to hours late, so run a few days after the window end
 Logs are fetched and parsed one day at a time to keep disk and memory small.
 """
 
-import base64
-import io
 import os
 import shutil
 import subprocess
@@ -34,7 +31,6 @@ from pathlib import Path
 from typing import Literal, TypedDict
 
 import duckdb
-from openpyxl import Workbook
 
 
 class aws(TypedDict):
@@ -89,15 +85,10 @@ ORDER BY {order}
 LIMIT {limit}
 """
 
-# Busy quarters have millions of distinct files, too many for a workbook
-TOP_FILES = 1000
-
-# Sheet name -> (group expression, column label, order, row limit)
-BREAKDOWNS = {
-    "monthly": ("strftime(day, '%Y-%m')", "month", "1", "NULL"),
-    "datasets": ("split_part(key, '/', 1) || '/' || split_part(key, '/', 2)", "dataset", "downloads DESC, 1", "NULL"),
-    "top_files": ("key", "file", "downloads DESC, 1", TOP_FILES),
-}
+MONTH = "strftime(day, '%Y-%m')"
+DATASET = "split_part(key, '/', 1) || '/' || split_part(key, '/', 2)"
+# Each export has its own dataset path, so a full listing runs to millions of rows
+TOP_DATASETS = 20
 
 
 def quarter_window(year: int, quarter: str) -> tuple[date, date]:
@@ -152,19 +143,17 @@ def load_day(con: duckdb.DuckDBPyConnection, logs_dir: Path) -> None:
 
 
 def metrics(
-    con: duckdb.DuckDBPyConnection, group: str, label: str, order: str, limit: int | str
+    con: duckdb.DuckDBPyConnection, group: str, label: str, order: str = "1", limit: int | str = "NULL"
 ) -> list[dict]:
     sql = METRICS_SQL.format(group=group, label=label, order=order, limit=limit)
     rel = con.sql(sql, params={"download_op": DOWNLOAD_OP})
     return [dict(zip(rel.columns, row)) for row in rel.fetchall()]
 
 
-def report(con: duckdb.DuckDBPyConnection) -> dict[str, list[dict]]:
-    """Summary plus one sheet per breakdown, from the loaded requests."""
-    totals = metrics(con, "'total'", "scope", "1", "NULL")
-    summary = totals[0] if totals else {}
-    summary_rows = [{"metric": k, "value": v} for k, v in summary.items() if k != "scope"]
-    return {"summary": summary_rows} | {name: metrics(con, *spec) for name, spec in BREAKDOWNS.items()}
+def summary(con: duckdb.DuckDBPyConnection) -> list[dict]:
+    totals = metrics(con, "'total'", "scope")
+    row = totals[0] if totals else {}
+    return [{"metric": k, "value": v} for k, v in row.items() if k != "scope"]
 
 
 def create_requests_table(con: duckdb.DuckDBPyConnection) -> None:
@@ -174,21 +163,6 @@ def create_requests_table(con: duckdb.DuckDBPyConnection) -> None:
             bytes_sent BIGINT, object_size BIGINT
         )
     """)
-
-
-def to_xlsx(sheets: dict[str, list[dict]]) -> str:
-    """Base64 workbook with one sheet per table."""
-    workbook = Workbook()
-    workbook.remove(workbook.active)
-    for title, rows in sheets.items():
-        sheet = workbook.create_sheet(title)
-        if rows:
-            sheet.append(list(rows[0]))
-        for row in rows:
-            sheet.append(list(row.values()))
-    buffer = io.BytesIO()
-    workbook.save(buffer)
-    return base64.b64encode(buffer.getvalue()).decode()
 
 
 def main(
@@ -234,17 +208,14 @@ def main(
         raise RuntimeError(f"no log files under {logs_path} for {window_start} to {window_end}")
 
     print("building report")
-    sheets = report(con)
     window_label = f"{window_start} to {window_end - timedelta(days=1)}"
-    filename = f"rawdata_metrics_{window_start}_{window_end - timedelta(days=1)}.xlsx"
     return {
         "render_all": [
-            {"file": {"content": to_xlsx(sheets), "filename": filename}},
             {"md": f"## Raw Data API downloads, {window_label}"},
-            {"table-row-object": sheets["summary"]},
+            {"table-row-object": summary(con)},
             {"md": "## By month"},
-            {"table-row-object": sheets["monthly"]},
-            {"md": "## Top datasets"},
-            {"table-row-object": sheets["datasets"][:20]},
+            {"table-row-object": metrics(con, MONTH, "month")},
+            {"md": f"## Top {TOP_DATASETS} datasets"},
+            {"table-row-object": metrics(con, DATASET, "dataset", "downloads DESC, 1", TOP_DATASETS)},
         ]
     }
