@@ -25,11 +25,11 @@ Windmill → Resources → Add `aws` at `f/shared/s3_access_logs_reader` (key, s
 
 ## 2. Test
 
-From `hot-staff/`. Try one week first, a full quarter takes ~75 min. It runs on the autoscaled `osm-export-small` workers (6.5Gi), so the first job waits a minute or two for a node. For a whole quarter pass
-`"quarter": "Q3", "year": 2026` in place of `start`/`end`.
+From `hot-staff/`. A quarter takes ~75 min. It runs on the autoscaled `osm-export-small` workers (6.5Gi),
+so the first job waits a minute or two for a node. For a range, add `"to_year"` and `"to_quarter"`.
 
 ```bash
-pnpm dlx windmill-cli script preview f/shared/rawdata_metrics.py -d '{"aws": "$res:f/shared/s3_access_logs_reader", "start": "2026-11-01T00:00:00Z", "end": "2026-11-08T00:00:00Z"}'
+pnpm dlx windmill-cli script preview f/shared/rawdata_metrics.py -d '{"aws": "$res:f/shared/s3_access_logs_reader", "year": 2026, "quarter": "Q3"}'
 ```
 
 ## 3. Deploy + schedule

@@ -5,17 +5,19 @@ kind: script
 schema:
   $schema: https://json-schema.org/draft/2020-12/schema
   type: object
+  order:
+    - aws
+    - logs_path
+    - year
+    - quarter
+    - to_year
+    - to_quarter
   properties:
     aws:
       type: object
       description: ''
       default: null
       format: resource-aws
-    end:
-      type: string
-      description: ''
-      default: null
-      format: date-time
     logs_path:
       type: string
       description: ''
@@ -31,14 +33,23 @@ schema:
         - Q3
         - Q4
       originalType: enum
-    start:
+    to_quarter:
       type: string
-      description: ''
+      description: Optional end of a range, defaults to quarter
       default: null
-      format: date-time
+      enum:
+        - Q1
+        - Q2
+        - Q3
+        - Q4
+      originalType: enum
+    to_year:
+      type: integer
+      description: Optional end of a range, defaults to year
+      default: null
     year:
       type: integer
-      description: ''
+      description: Leave year and quarter empty for the previous quarter
       default: null
   required:
     - aws

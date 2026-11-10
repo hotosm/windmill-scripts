@@ -1,11 +1,12 @@
 #requirements:
 #duckdb
 
-"""Raw Data API download metrics for a date window, from the S3 server access logs of
+"""Raw Data API download metrics for a range of quarters, from the S3 server access logs of
 the production-raw-data-api bucket. Replaces hotosm/s3-logs-analyzer for reporting.
 
-Window: a `quarter` (with `year`, default this year), or `start` and `end` (end exclusive),
-or neither for the previous calendar quarter.
+Window: `year` and `quarter`, through `to_year` and `to_quarter` for a range, or nothing
+for the previous calendar quarter. users and files_downloaded are distinct counts, so they
+don't add up across months or quarters. Use the by quarter table instead of summing months.
 
 Setup and infra: infra/rawdata_metrics/ in this repo.
 - `aws`: f/shared/s3_access_logs_reader, read-only on the access logs bucket.
@@ -86,6 +87,7 @@ LIMIT {limit}
 """
 
 MONTH = "strftime(day, '%Y-%m')"
+QUARTER = "strftime(day, '%Y') || '-Q' || quarter(day)"
 DATASET = "split_part(key, '/', 1) || '/' || split_part(key, '/', 2)"
 # Each export has its own dataset path, so a full listing runs to millions of rows
 TOP_DATASETS = 20
@@ -105,19 +107,20 @@ def previous_quarter(today: date) -> tuple[date, date]:
 
 
 def resolve_window(
-    start: datetime | None, end: datetime | None, quarter: str | None, year: int | None
+    year: int | None, quarter: str | None, to_year: int | None, to_quarter: str | None
 ) -> tuple[date, date]:
-    if quarter:
-        if start or end:
-            raise ValueError("give a quarter or start and end, not both")
-        return quarter_window(year or datetime.now(UTC).year, quarter)
-    if not start and not end:
+    if not (year or quarter or to_year or to_quarter):
         return previous_quarter(datetime.now(UTC).date())
-    if not (start and end):
-        raise ValueError("give both start and end, or neither for the previous quarter")
+    if not (year and quarter):
+        raise ValueError("give a year and quarter, or nothing for the previous quarter")
+    start, _ = quarter_window(year, quarter)
+    _, end = quarter_window(to_year or year, to_quarter or quarter)
     if start >= end:
-        raise ValueError(f"start ({start}) must be before end ({end})")
-    return start.date(), end.date()
+        raise ValueError(f"{to_year or year} {to_quarter or quarter} is before {year} {quarter}")
+    # A quarter still in progress would report partial numbers that look complete
+    if end > datetime.now(UTC).date():
+        raise ValueError(f"{to_year or year} {to_quarter or quarter} hasn't finished yet")
+    return start, end
 
 
 def fetch_day(remote: str, day: date, dest: Path, env: dict) -> None:
@@ -169,12 +172,12 @@ def main(
     aws: aws,
     # Windmill only reads literal defaults and inline Literal types from main's signature
     logs_path: str = "hot-server-access-logs/670261699094/us-east-1/production-raw-data-api",
-    quarter: Literal["Q1", "Q2", "Q3", "Q4"] | None = None,
     year: int | None = None,
-    start: datetime | None = None,
-    end: datetime | None = None,
+    quarter: Literal["Q1", "Q2", "Q3", "Q4"] | None = None,
+    to_year: int | None = None,
+    to_quarter: Literal["Q1", "Q2", "Q3", "Q4"] | None = None,
 ):
-    window_start, window_end = resolve_window(start, end, quarter, year)
+    window_start, window_end = resolve_window(year, quarter, to_year, to_quarter)
 
     if not shutil.which("rclone"):
         subprocess.run(["apt-get", "update"], check=True)
@@ -213,6 +216,8 @@ def main(
         "render_all": [
             {"md": f"## Raw Data API downloads, {window_label}"},
             {"table-row-object": summary(con)},
+            {"md": "## By quarter"},
+            {"table-row-object": metrics(con, QUARTER, "quarter")},
             {"md": "## By month"},
             {"table-row-object": metrics(con, MONTH, "month")},
             {"md": f"## Top {TOP_DATASETS} datasets"},
