@@ -42,3 +42,4 @@ schema:
       default: null
   required:
     - aws
+tag: osm-export-small

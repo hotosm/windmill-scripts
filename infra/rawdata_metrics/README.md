@@ -25,7 +25,7 @@ Windmill → Resources → Add `aws` at `f/shared/s3_access_logs_reader` (key, s
 
 ## 2. Test
 
-From `hot-staff/`. Try one week first, a full quarter takes 1-2h. For a whole quarter pass
+From `hot-staff/`. Try one week first, a full quarter takes ~75 min. It runs on the autoscaled `osm-export-small` workers (6.5Gi), so the first job waits a minute or two for a node. For a whole quarter pass
 `"quarter": "Q3", "year": 2026` in place of `start`/`end`.
 
 ```bash

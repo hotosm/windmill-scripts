@@ -52,10 +52,10 @@ LOG_REGEX = (
 LOG_FIELDS = ["time", "ip", "op", "key", "status", "bytes_sent", "object_size"]
 LINE_DELIMITER = "\x1f"  # never appears in logs, so each line reads as one column
 
-# DuckDB sizes itself from the node's RAM, not the pod limit (2Gi on default workers),
-# so cap it and back it with a file in the job dir to spill to disk
+# DuckDB sizes itself from the node's RAM, not the pod limit (6500Mi on the osm-export-small
+# workers this runs on), so cap it and back it with a file in the job dir to spill to disk
 DUCKDB_FILE = "requests.duckdb"
-DUCKDB_CONFIG = {"memory_limit": "1GB", "threads": 2, "preserve_insertion_order": False}
+DUCKDB_CONFIG = {"memory_limit": "4GB", "threads": 2, "preserve_insertion_order": False}
 
 DOWNLOAD_OP = "REST.GET.OBJECT"
 EXPORT_OPS = ("REST.PUT.OBJECT", "REST.POST.UPLOAD")
@@ -86,13 +86,17 @@ SELECT {group} AS {label},
 FROM requests
 GROUP BY 1
 ORDER BY {order}
+LIMIT {limit}
 """
 
-# Sheet name -> (group expression, column label, order)
+# Busy quarters have millions of distinct files, too many for a workbook
+TOP_FILES = 1000
+
+# Sheet name -> (group expression, column label, order, row limit)
 BREAKDOWNS = {
-    "monthly": ("strftime(day, '%Y-%m')", "month", "1"),
-    "datasets": ("split_part(key, '/', 1) || '/' || split_part(key, '/', 2)", "dataset", "downloads DESC, 1"),
-    "files": ("key", "file", "downloads DESC, 1"),
+    "monthly": ("strftime(day, '%Y-%m')", "month", "1", "NULL"),
+    "datasets": ("split_part(key, '/', 1) || '/' || split_part(key, '/', 2)", "dataset", "downloads DESC, 1", "NULL"),
+    "top_files": ("key", "file", "downloads DESC, 1", TOP_FILES),
 }
 
 
@@ -147,15 +151,17 @@ def load_day(con: duckdb.DuckDBPyConnection, logs_dir: Path) -> None:
     con.execute(LOAD_SQL, params)
 
 
-def metrics(con: duckdb.DuckDBPyConnection, group: str, label: str, order: str) -> list[dict]:
-    sql = METRICS_SQL.format(group=group, label=label, order=order)
+def metrics(
+    con: duckdb.DuckDBPyConnection, group: str, label: str, order: str, limit: int | str
+) -> list[dict]:
+    sql = METRICS_SQL.format(group=group, label=label, order=order, limit=limit)
     rel = con.sql(sql, params={"download_op": DOWNLOAD_OP})
     return [dict(zip(rel.columns, row)) for row in rel.fetchall()]
 
 
 def report(con: duckdb.DuckDBPyConnection) -> dict[str, list[dict]]:
     """Summary plus one sheet per breakdown, from the loaded requests."""
-    totals = metrics(con, "'total'", "scope", "1")
+    totals = metrics(con, "'total'", "scope", "1", "NULL")
     summary = totals[0] if totals else {}
     summary_rows = [{"metric": k, "value": v} for k, v in summary.items() if k != "scope"]
     return {"summary": summary_rows} | {name: metrics(con, *spec) for name, spec in BREAKDOWNS.items()}
